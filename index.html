@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Greek Memory Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    h1 { margin-bottom: 10px; }
+
+    .info {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin: 15px 0;
+      font-size: 18px;
+    }
+
+    button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 10px;
+      background: #22c55e;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 90px);
+      gap: 15px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .card {
+      width: 90px;
+      height: 90px;
+      background: #1e293b;
+      border-radius: 15px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 34px;
+      cursor: pointer;
+      user-select: none;
+      transition: 0.2s;
+    }
+
+    .card.flipped, .card.matched {
+      background: #334155;
+      cursor: default;
+    }
+
+    .card.matched {
+      background: #16a34a;
+    }
+
+    .message {
+      margin-top: 15px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🧠 Greek Alphabet Memory Game</h1>
+
+  <div class="info">
+    <div>Score: <span id="score">100</span></div>
+    <div>Matched: <span id="matched">0</span> / 8</div>
+  </div>
+
+  <button onclick="startGame()">Restart Game</button>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="message" id="message"></div>
+
+<script>
+  const greekLetters = ["α","β","γ","δ","ε","ζ","η","θ"]; // 8 pairs = 16 cards
+  let cards = [];
+  let firstCard = null;
+  let secondCard = null;
+  let lockBoard = false;
+
+  let score = 100;
+  let matchedPairs = 0;
+
+  function shuffle(array) {
+    return array.sort(() => Math.random() - 0.5);
+  }
+
+  function startGame() {
+    score = 100;
+    matchedPairs = 0;
+    firstCard = null;
+    secondCard = null;
+    lockBoard = false;
+
+    document.getElementById("score").innerText = score;
+    document.getElementById("matched").innerText = matchedPairs;
+    document.getElementById("message").innerText = "";
+
+    cards = shuffle([...greekLetters, ...greekLetters]);
+
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
+
+    cards.forEach((letter, index) => {
+      const card = document.createElement("div");
+      card.classList.add("card");
+      card.dataset.letter = letter;
+      card.dataset.index = index;
+      card.innerText = "❓";
+
+      card.addEventListener("click", () => flipCard(card));
+      grid.appendChild(card);
+    });
+  }
+
+  function flipCard(card) {
+    if (lockBoard) return;
+    if (card.classList.contains("flipped")) return;
+    if (card.classList.contains("matched")) return;
+    if (score <= 0) return;
+
+    card.classList.add("flipped");
+    card.innerText = card.dataset.letter;
+
+    if (!firstCard) {
+      firstCard = card;
+      return;
+    }
+
+    secondCard = card;
+    checkMatch();
+  }
+
+  function checkMatch() {
+    lockBoard = true;
+
+    const isMatch = firstCard.dataset.letter === secondCard.dataset.letter;
+
+    if (isMatch) {
+      firstCard.classList.add("matched");
+      secondCard.classList.add("matched");
+      matchedPairs++;
+
+      document.getElementById("matched").innerText = matchedPairs;
+
+      resetTurn();
+
+      if (matchedPairs === greekLetters.length) {
+        document.getElementById("message").innerText = "🎉 You matched all cards! You win!";
+      }
+
+    } else {
+      score -= 4;
+      if (score < 0) score = 0;
+
+      document.getElementById("score").innerText = score;
+
+      setTimeout(() => {
+        firstCard.classList.remove("flipped");
+        secondCard.classList.remove("flipped");
+        firstCard.innerText = "❓";
+        secondCard.innerText = "❓";
+        resetTurn();
+
+        if (score === 0) {
+          document.getElementById("message").innerText = "💀 Score is 0. Game Over!";
+          lockBoard = true;
+        }
+      }, 800);
+    }
+  }
+
+  function resetTurn() {
+    firstCard = null;
+    secondCard = null;
+    lockBoard = false;
+  }
+
+  startGame();
+</script>
+
+</body>
+</html>
