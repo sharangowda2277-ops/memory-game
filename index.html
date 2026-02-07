@@ -1,9 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Greek Memory Game</title>
+  <title>Alphabet Memory Game</title>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -13,38 +15,62 @@
       padding: 20px;
     }
 
-    h1 { margin-bottom: 10px; }
+    h1 {
+      margin-bottom: 8px;
+    }
+
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin: 15px 0 5px;
+    }
 
     .info {
       display: flex;
       justify-content: center;
-      gap: 30px;
-      margin: 15px 0;
+      gap: 25px;
       font-size: 18px;
+      flex-wrap: wrap;
+    }
+
+    input {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: none;
+      width: 220px;
+      font-size: 15px;
+      outline: none;
     }
 
     button {
-      padding: 10px 18px;
+      padding: 10px 16px;
       border: none;
       border-radius: 10px;
       background: #22c55e;
       font-weight: bold;
       cursor: pointer;
+      font-size: 15px;
+    }
+
+    button:active {
+      transform: scale(0.98);
     }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(4, 90px);
-      gap: 15px;
+      gap: 14px;
       justify-content: center;
-      margin-top: 20px;
+      margin-top: 18px;
+      padding: 10px;
     }
 
     .card {
-      width: 90px;
-      height: 90px;
+      width: 82px;
+      height: 82px;
       background: #1e293b;
-      border-radius: 15px;
+      border-radius: 16px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -52,6 +78,7 @@
       cursor: pointer;
       user-select: none;
       transition: 0.2s;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.25);
     }
 
     .card.flipped, .card.matched {
@@ -67,26 +94,56 @@
       margin-top: 15px;
       font-size: 20px;
       font-weight: bold;
+      min-height: 26px;
+    }
+
+    .hint {
+      opacity: 0.8;
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 520px) {
+      .card {
+        width: 70px;
+        height: 70px;
+        font-size: 30px;
+      }
     }
   </style>
 </head>
+
 <body>
 
-  <h1>🧠 Greek Alphabet Memory Game</h1>
+  <h1>🧠 Alphabet Memory Game</h1>
+
+  <div class="topbar">
+    <input id="cardCountInput" type="number" min="2" placeholder="Enter total cards (e.g., 10, 20, 34)" />
+    <button onclick="startGameFromInput()">Start Game</button>
+    <button onclick="startGameFromInput()">Restart</button>
+  </div>
 
   <div class="info">
     <div>Score: <span id="score">100</span></div>
-    <div>Matched: <span id="matched">0</span> / 8</div>
+    <div>Matched: <span id="matched">0</span></div>
+    <div>Total Cards: <span id="totalCards">0</span></div>
   </div>
 
-  <button onclick="startGame()">Restart Game</button>
+  <div class="hint">
+    Score starts at 100. Wrong match = -4. Game ends when all pairs matched OR score is 0.
+  </div>
 
   <div class="grid" id="grid"></div>
 
   <div class="message" id="message"></div>
 
 <script>
-  const greekLetters = ["α","β","γ","δ","ε","ζ","η","θ"]; // 8 pairs = 16 cards
+  // English alphabets: A-Z + a-z (Capital and small are different)
+  const ALL_SYMBOLS = [
+    ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    ..."abcdefghijklmnopqrstuvwxyz"
+  ];
+
   let cards = [];
   let firstCard = null;
   let secondCard = null;
@@ -94,31 +151,88 @@
 
   let score = 100;
   let matchedPairs = 0;
+  let totalPairs = 0;
 
   function shuffle(array) {
     return array.sort(() => Math.random() - 0.5);
   }
 
-  function startGame() {
+  // Responsive grid: decides number of columns based on card count and screen width
+  function setResponsiveGrid(totalCards) {
+    const grid = document.getElementById("grid");
+
+    // Approx logic:
+    // - For small screens keep columns smaller
+    // - For bigger screens increase columns
+    const screenWidth = window.innerWidth;
+
+    let cols = 4;
+
+    if (screenWidth < 480) cols = 3;
+    else if (screenWidth < 700) cols = 4;
+    else if (screenWidth < 1000) cols = 6;
+    else cols = 8;
+
+    // Also adjust columns depending on total cards
+    // Example: 10 cards shouldn't show 8 columns
+    if (totalCards <= 10) cols = Math.min(cols, 5);
+    if (totalCards <= 6) cols = Math.min(cols, 3);
+
+    grid.style.gridTemplateColumns = `repeat(${cols}, 82px)`;
+  }
+
+  function startGameFromInput() {
+    let totalCards = parseInt(document.getElementById("cardCountInput").value);
+
+    if (isNaN(totalCards) || totalCards < 2) {
+      alert("Please enter a valid number of cards (minimum 2).");
+      return;
+    }
+
+    // Must be even for pairs
+    if (totalCards % 2 !== 0) {
+      totalCards = totalCards - 1;
+      alert("Odd number entered. Using " + totalCards + " cards (must be even for pairs).");
+    }
+
+    // We have 52 unique symbols total. So max pairs = 52, max cards = 104
+    if (totalCards > 104) {
+      totalCards = 104;
+      alert("Maximum supported cards is 104. Using 104.");
+    }
+
+    startGame(totalCards);
+  }
+
+  function startGame(totalCards) {
     score = 100;
     matchedPairs = 0;
+    lockBoard = false;
     firstCard = null;
     secondCard = null;
-    lockBoard = false;
+
+    totalPairs = totalCards / 2;
 
     document.getElementById("score").innerText = score;
-    document.getElementById("matched").innerText = matchedPairs;
+    document.getElementById("matched").innerText = matchedPairs + " / " + totalPairs;
+    document.getElementById("totalCards").innerText = totalCards;
     document.getElementById("message").innerText = "";
 
-    cards = shuffle([...greekLetters, ...greekLetters]);
+    // Choose required number of unique symbols for pairs
+    const symbolsNeeded = ALL_SYMBOLS.slice(0, totalPairs);
+
+    // Make pairs
+    cards = shuffle([...symbolsNeeded, ...symbolsNeeded]);
 
     const grid = document.getElementById("grid");
     grid.innerHTML = "";
 
-    cards.forEach((letter, index) => {
+    setResponsiveGrid(totalCards);
+
+    cards.forEach((symbol, index) => {
       const card = document.createElement("div");
       card.classList.add("card");
-      card.dataset.letter = letter;
+      card.dataset.symbol = symbol;
       card.dataset.index = index;
       card.innerText = "❓";
 
@@ -134,7 +248,7 @@
     if (score <= 0) return;
 
     card.classList.add("flipped");
-    card.innerText = card.dataset.letter;
+    card.innerText = card.dataset.symbol;
 
     if (!firstCard) {
       firstCard = card;
@@ -148,18 +262,18 @@
   function checkMatch() {
     lockBoard = true;
 
-    const isMatch = firstCard.dataset.letter === secondCard.dataset.letter;
+    const isMatch = firstCard.dataset.symbol === secondCard.dataset.symbol;
 
     if (isMatch) {
       firstCard.classList.add("matched");
       secondCard.classList.add("matched");
       matchedPairs++;
 
-      document.getElementById("matched").innerText = matchedPairs;
+      document.getElementById("matched").innerText = matchedPairs + " / " + totalPairs;
 
       resetTurn();
 
-      if (matchedPairs === greekLetters.length) {
+      if (matchedPairs === totalPairs) {
         document.getElementById("message").innerText = "🎉 You matched all cards! You win!";
       }
 
@@ -190,9 +304,18 @@
     lockBoard = false;
   }
 
-  startGame();
+  // Make grid responsive on resize
+  window.addEventListener("resize", () => {
+    const totalCards = parseInt(document.getElementById("totalCards").innerText);
+    if (!isNaN(totalCards) && totalCards > 0) {
+      setResponsiveGrid(totalCards);
+    }
+  });
+
+  // Default start with 16 cards
+  document.getElementById("cardCountInput").value = 16;
+  startGame(16);
 </script>
 
 </body>
 </html>
-
